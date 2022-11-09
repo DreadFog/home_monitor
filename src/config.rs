@@ -1,6 +1,7 @@
 use local_ip_address::local_ip;
 use reqwest;
 use sysinfo::{NetworkExt, NetworksExt, ProcessExt, System, SystemExt};
+// https://docs.rs/sysinfo/latest/sysinfo/
 pub struct Config {
     public_ip : String,
     private_ip : String,
@@ -10,19 +11,59 @@ pub struct Config {
     ram_usage : String,
     disk_usage : String,
     free_disk_space : String,
-    os : Info,
     hostname : String,
 }
 impl Config {
     pub fn new() -> Config {
+        // Retrieve the info
+        let mut sys = System::new_all();
+        sys.refresh_all();
         // get the public IP from ifconfig.me
-        let public_ip = reqwest::get("https://ifconfig.me/ip")
-            .expect("Failed to get the public IP")
-            .text()
-            .expect("Failed to convert the public IP to a string").to_string();
-        let private_ip = local_ip().unwrap().to_string();
-        let sys_info = sys_info::cpu_info().unwrap();
+        // We display all disks' information:
+        println!("=> disks:");
+        for disk in sys.disks() {
+            println!("{:?}", disk);
+        }
 
+        // Network interfaces name, data received and data transmitted:
+        println!("=> networks:");
+        for (interface_name, data) in sys.networks() {
+            println!("{}: {}/{} B", interface_name, data.received(), data.transmitted());
+        }
+
+        // Components temperature:
+        println!("=> components:");
+        for component in sys.components() {
+            println!("{:?}", component);
+        }
+
+        println!("=> system:");
+        // RAM and swap information:
+        println!("total memory: {} bytes", sys.total_memory());
+        println!("used memory : {} bytes", sys.used_memory());
+        println!("total swap  : {} bytes", sys.total_swap());
+        println!("used swap   : {} bytes", sys.used_swap());
+
+        // Display system information:
+        println!("System name:             {:?}", sys.name());
+        println!("System kernel version:   {:?}", sys.kernel_version());
+        println!("System OS version:       {:?}", sys.os_version());
+        println!("System host name:        {:?}", sys.host_name());
+
+        // Number of CPUs:
+        println!("NB CPUs: {}", sys.cpus().len());
+
+        Config {
+            public_ip : "127.0.0.1".to_string(),
+            private_ip : "127.0.0.1".to_string(),
+            cpu_model : "Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz".to_string(),
+            cpu_temp : "0".to_string(),
+            cpu_usage : "0".to_string(),
+            ram_usage : "0".to_string(),
+            disk_usage : "0".to_string(),
+            free_disk_space : "0".to_string(),
+            hostname : "localhost".to_string(),
+        } 
     }
     pub fn get_cpu_model(&self) -> String {
         self.cpu_model.clone()
@@ -41,9 +82,6 @@ impl Config {
     }
     pub fn get_free_disk_space(&self) -> String {
         self.free_disk_space.clone()
-    }
-    pub fn get_os(&self) -> String {
-        self.os.clone()
     }
     pub fn get_hostname(&self) -> String {
         self.hostname.clone()

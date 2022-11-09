@@ -1,34 +1,36 @@
 use std::env;
+use std::net::TcpListener;
+use std::thread;
+use std::time::Duration;
 mod master_functions;
 mod slave_functions;
 mod config;
-use master_functions::handle_connection;
-
+use master_functions::handle_communication;
+use master_functions::webpage_display;
 fn main() {
     let args: Vec<String> = env::args().collect();
     // Arg[1] is equal to 1 when the master process is running
     // Arg[1] is equal to 0 otherwise
     let role = &args[1].parse::<i8>().unwrap_or_else( |e| {
-        eprintln!("Error: {}", e);
+        eprintln!("The argument must be an integer: {}", e);
         std::process::exit(1);
     });
     if *role == 1 {
         println!("Master process");
-        // create two sub processes
-        // the first one handles the connections from the slave processes
-        let mut child1 = std::process::Command::new("cargo")
-            .arg("run")
-            .arg("0")
-            .spawn()
-            .expect("Failed to spawn child process");
-        // the second one handles the webpage requests from the browser
-        let mut child2 = std::process::Command::new("cargo")
-            .arg("run")
-            .arg("0")
-            .spawn()
-            .expect("Failed to spawn child process");
+        // Create a first thread that will handle communication with the slaves.
+        let comm_thread = thread::spawn(|| {
+            handle_communication();
+        });   
+        let web_thread = thread::spawn(|| {
+            webpage_display();
+        });
+        // keep the spawned threads alive
+        web_thread.join().unwrap(); 
+        comm_thread.join().unwrap();
+        // Create a second thread that will handle the webpage display   
         } else {
         println!("Slave process");
         // generate the config struct
-        let config = config::Config::new();
+        //let config = config::Config::new();
+}
 }
