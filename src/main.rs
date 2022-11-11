@@ -1,7 +1,5 @@
 use std::env;
-use std::net::TcpListener;
 use std::thread;
-use std::time::Duration;
 mod master_functions;
 mod slave_functions;
 mod config;
