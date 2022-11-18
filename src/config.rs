@@ -1,34 +1,47 @@
 use local_ip_address::local_ip;
-use reqwest;
+use std::collections::HashMap;
 use sysinfo::{NetworkExt, NetworksExt, ProcessExt, System, SystemExt};
+// ,ecessary for serializing and deserializing
+use serde::{Deserialize, Serialize, Serializer,Deserializer, ser::SerializeStruct};
 // https://docs.rs/sysinfo/latest/sysinfo/
 pub struct Config {
-    public_ip : String,
     private_ip : String,
-    cpu_model : String,
-    cpu_temp : String,
-    cpu_usage : String,
-    ram_usage : String,
-    disk_usage : String,
-    free_disk_space : String,
     hostname : String,
+    os : (String, String), // (os_name, os_version)
+    cpu_model : String,
+    cpu_temps : String, // Only one temperature for now 
+    cpu_usages : Vec<String>, 
+    ram_usage : (String, String), // (used, total)
+    disks_usage : HashMap<String, (String, String)>, // ID -> (used, total)
 }
 impl Config {
     pub fn new() -> Config {
         // Retrieve the info
         let mut sys = System::new_all();
         sys.refresh_all();
-        // get the public IP from ifconfig.me
-        // We display all disks' information:
+
+        // Get the private ip
+        let private_ip = local_ip().unwrap_or_else(|e | {
+            std::net::IpAddr::V4(std::net::Ipv4Addr::new(0,0,0,0))
+        }).to_string();
+
+        // Retrieve the hostname
+        let hostname = sys.host_name().unwrap_or_else(|| {
+            "Unknown".to_string()
+        });
+
+        // Retrieve the OS name and version
+        let os = (sys.name().unwrap_or_else(|| {
+            "Unknown".to_string()
+        }), sys.os_version().unwrap_or_else(|| {
+            "Unknown".to_string()
+        }));
+
+        // CPU model
+        println!("NB CPUs: {}", sys.cpus().len());
         println!("=> disks:");
         for disk in sys.disks() {
             println!("{:?}", disk);
-        }
-
-        // Network interfaces name, data received and data transmitted:
-        println!("=> networks:");
-        for (interface_name, data) in sys.networks() {
-            println!("{}: {}/{} B", interface_name, data.received(), data.transmitted());
         }
 
         // Components temperature:
@@ -36,54 +49,39 @@ impl Config {
         for component in sys.components() {
             println!("{:?}", component);
         }
-
         println!("=> system:");
-        // RAM and swap information:
+        // RAM information:
         println!("total memory: {} bytes", sys.total_memory());
         println!("used memory : {} bytes", sys.used_memory());
-        println!("total swap  : {} bytes", sys.total_swap());
-        println!("used swap   : {} bytes", sys.used_swap());
 
-        // Display system information:
-        println!("System name:             {:?}", sys.name());
-        println!("System kernel version:   {:?}", sys.kernel_version());
-        println!("System OS version:       {:?}", sys.os_version());
-        println!("System host name:        {:?}", sys.host_name());
-
-        // Number of CPUs:
-        println!("NB CPUs: {}", sys.cpus().len());
 
         Config {
-            public_ip : "127.0.0.1".to_string(),
-            private_ip : "127.0.0.1".to_string(),
-            cpu_model : "Intel(R) Core(TM) i7-8750H CPU @ 2.20GHz".to_string(),
-            cpu_temp : "0".to_string(),
-            cpu_usage : "0".to_string(),
-            ram_usage : "0".to_string(),
-            disk_usage : "0".to_string(),
-            free_disk_space : "0".to_string(),
-            hostname : "localhost".to_string(),
-        } 
+            private_ip,
+            hostname,
+            os,
+            cpu_model : "".to_string(),
+            cpu_temps : "".to_string(),
+            cpu_usages : vec![],
+            ram_usage : ("".to_string(), "".to_string()),
+            disks_usage : HashMap::new(),
+        }
     }
-    pub fn get_cpu_model(&self) -> String {
-        self.cpu_model.clone()
-    }
-    pub fn get_cpu_temp(&self) -> String {
-        self.cpu_temp.clone()
-    }
-    pub fn get_cpu_usage(&self) -> String {
-        self.cpu_usage.clone()
-    }
-    pub fn get_ram_usage(&self) -> String {
-        self.ram_usage.clone()
-    }
-    pub fn get_disk_usage(&self) -> String {
-        self.disk_usage.clone()
-    }
-    pub fn get_free_disk_space(&self) -> String {
-        self.free_disk_space.clone()
-    }
-    pub fn get_hostname(&self) -> String {
-        self.hostname.clone()
+}
+
+impl Serialize for Config {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Config", 7)?;
+        state.serialize_field("private_ip", &self.private_ip)?;
+        state.serialize_field("hostname", &self.hostname)?;
+        state.serialize_field("os", &self.os)?;
+        state.serialize_field("cpu_model", &self.cpu_model)?;
+        state.serialize_field("cpu_temps", &self.cpu_temps)?;
+        state.serialize_field("cpu_usages", &self.cpu_usages)?;
+        state.serialize_field("ram_usage", &self.ram_usage)?;
+        state.serialize_field("disks_usage", &self.disks_usage)?;
+        state.end()
     }
 }

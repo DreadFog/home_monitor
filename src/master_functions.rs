@@ -2,7 +2,6 @@ use std::{
     io::{prelude::*, BufReader},
     net::{TcpListener, TcpStream},
     fs, path::Path,
-    collections::HashMap,
 };
 //function to handle the connection from the slave process
 pub fn handle_communication() {
@@ -15,11 +14,11 @@ pub fn webpage_display() {
     for stream in listener.incoming() {
         let stream = stream.unwrap();
 
-        handle_connection(stream);
+        web_interact(stream);
     }
 }
 
-fn handle_connection(mut stream: TcpStream) {
+fn web_interact(mut stream: TcpStream) {
     let buf_reader = BufReader::new(&mut stream);
     let http_request: Vec<String> = buf_reader
         .lines()

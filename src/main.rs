@@ -30,5 +30,5 @@ fn main() {
         println!("Slave process");
         // generate the config struct
         //let config = config::Config::new();
-}
+    }
 }
