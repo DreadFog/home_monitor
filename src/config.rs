@@ -4,7 +4,7 @@ use sysinfo::*;
 // necessary for serializing and deserializing
 use serde::{Serialize, Deserialize};
 use regex::Regex;
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     private_ip : String,
     hostname : String,

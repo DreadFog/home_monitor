@@ -15,8 +15,9 @@ pub fn handle_communication() {
     // slaves list 
     let slaves_list = Arc::new(Mutex::new(Vec::new()));
     // create a first thread that listens for hellos from the slaves
+    let slaves_list_clone = Arc::clone(&slaves_list);
     let hello_thread = thread::spawn(|| {
-        handle_hellos(slaves_list);
+        handle_hellos(slaves_list_clone);
     });
     // create a second thread that periodically sends update requests to the slaves
     let update_thread = thread::spawn(|| {
@@ -69,12 +70,10 @@ fn handle_client(stream: TcpStream) -> Config {
 
 // function to send update requests to the slaves
 fn send_update(slaves_list: Arc<Mutex<Vec<Config>>>) {
-    // clone the slaves list mutex to pass it to the thread
-    let slaves_list = Arc::clone(&slaves_list);
-    // get the slaves list
-    let slaves_list = slaves_list.lock().unwrap();
+    // get the slaves list to iterate over it
+    let list_slaves = slaves_list.lock().unwrap().clone();
     // iterate over the slaves list
-    for slave in slaves_list.iter() {
+    for slave in list_slaves {
         // create a new thread for each slave
         thread::spawn(move || {
             // create a new connection to the slave
