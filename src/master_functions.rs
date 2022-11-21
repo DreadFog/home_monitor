@@ -1,7 +1,7 @@
 use std::{
     io::{prelude::*, BufReader},
     net::{TcpListener, TcpStream},
-    fs, path::Path, thread,
+    fs, path::Path, thread::{self, JoinHandle},
 };
 use crate::config::Config;
 use std::sync::{Arc, Mutex};
@@ -9,22 +9,49 @@ use std::sync::{Arc, Mutex};
 const MASTER_PORT: &str = "19999";
 // the slaves listen for update requests on the port 19998
 const SLAVE_PORT: &str = "19998";
+// the master listens on the local port 19997 for update requests from the webpage
+const UPDATE_PORT: &str = "19997";
 //function to handle the connection from the slave process
 pub fn handle_communication() {
     println!("Communication thread started");
     // slaves list 
     let slaves_list = Arc::new(Mutex::new(Vec::new()));
-    // create a first thread that listens for hellos from the slaves
-    let slaves_list_clone = Arc::clone(&slaves_list);
-    let hello_thread = thread::spawn(|| {
-        handle_hellos(slaves_list_clone);
+    // create a thread that listens on the update port for update requests
+    // these requests are sent by the webpage
+    let slaves_list_clone1 = Arc::clone(&slaves_list);
+    let update_thread = thread::spawn(move || {
+        let listener = TcpListener::bind(format!("localhost:{}", UPDATE_PORT)).unwrap();
+        // Create an empty vector to store the threads
+        let mut threads = Vec::new();
+        for stream in listener.incoming() {
+            let slaves_list_clone2 = Arc::clone(&slaves_list_clone1);
+            let exchange = thread::spawn(move || {
+                println!("Update Query from webpage");
+                let stream = stream.unwrap();
+                //Consider the stream as an http request
+                let mut reader = BufReader::new(stream);
+                let mut request = String::new();
+                reader.read_line(&mut request).unwrap();
+                // the request is of the form "GET /update HTTP/1.1"
+                // we only need the first part
+                let request: Vec<&str> = request.split_whitespace().collect();
+                // if the request is an update request
+                if request[1] == "/update" {
+                    println!("Update request OK");
+                    // send the update request to the slaves
+                    send_update(slaves_list_clone2);
+                } else {
+                    eprintln!("Update request KO: {}", request[1]);
+                }
+            });
+            threads.push(exchange);
+        }
+        for thread in threads {
+            thread.join().unwrap();
+        }
     });
-    // create a second thread that periodically sends update requests to the slaves
-    let update_thread = thread::spawn(|| {
-        // sleep for 10 seconds
-        thread::sleep(std::time::Duration::from_secs(10));
-        println!("Update Query");
-        send_update(slaves_list);
+    let hello_thread = thread::spawn(|| {
+        handle_hellos(slaves_list);
     });
     // keep the spawned threads alive
     hello_thread.join().unwrap();
