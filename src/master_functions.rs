@@ -21,21 +21,17 @@ pub fn handle_communication() {
     let slaves_list_clone1 = Arc::clone(&slaves_list);
     let update_thread = thread::spawn(move || {
         let listener = TcpListener::bind(format!("localhost:{}", UPDATE_PORT)).unwrap();
-        // Create an empty vector to store the threads
         let mut threads = Vec::new();
         for stream in listener.incoming() {
             let slaves_list_clone2 = Arc::clone(&slaves_list_clone1);
             let exchange = thread::spawn(move || {
                 println!("Update Query from webpage");
                 let stream = stream.unwrap();
-                //Consider the stream as an http request
                 let mut reader = BufReader::new(stream);
                 let mut request = String::new();
                 reader.read_line(&mut request).unwrap();
-                // the request is of the form "GET /update HTTP/1.1"
-                // we only need the first part
+                // the request is of the form "POST /update HTTP/1.1"
                 let request: Vec<&str> = request.split_whitespace().collect();
-                // if the request is an update request
                 if request[1] == "/update" {
                     println!("Update request OK");
                     // send the update request to the slaves
@@ -141,7 +137,7 @@ fn web_interact(mut stream: TcpStream) {
         .map(|result| result.unwrap())
         .take_while(|line| !line.is_empty())
         .collect();
-    println!("Request: {:#?}", http_request);
+    //println!("Request: {:#?}", http_request);
     let mut first_line = http_request[0].split_whitespace();
     // Get the method
     let method = first_line.next().unwrap();

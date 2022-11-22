@@ -1,6 +1,7 @@
-function httpGet(theUrl)
+function httpGet()
 {
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.open( "GET", theUrl, false ); // false for synchronous request
-    xmlHttp.send( null );
+    fetch("localhost:19997/update", {
+        method: 'POST',
+    });
+    //window.location.reload();
 }
